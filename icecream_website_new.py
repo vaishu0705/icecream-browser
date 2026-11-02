@@ -153,6 +153,54 @@ st.divider()
 
 st.subheader("🤖 Icecream AI Chat")
 
+
+def get_secret(name, default=None):
+    # st.secrets raises an error when no secrets are set up at all
+    try:
+        return st.secrets.get(name, default)
+    except Exception:
+        return default
+
+
+# Online, the chat uses Google Gemini (key set in Streamlit secrets).
+# On your own computer without a key, it falls back to Ollama.
+gemini_key = get_secret("GEMINI_API_KEY")
+gemini_model = get_secret("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+
+def ask_gemini(messages):
+    contents = [
+        {
+            "role": "model" if m["role"] == "assistant" else "user",
+            "parts": [{"text": m["content"]}]
+        }
+        for m in messages
+    ]
+    response = requests.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        + gemini_model + ":generateContent",
+        headers={"x-goog-api-key": gemini_key},
+        json={"contents": contents},
+        timeout=90
+    )
+    response.raise_for_status()
+    return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def ask_ollama(messages):
+    response = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": "llama3.2:1b",
+            "messages": messages,
+            "stream": False
+        },
+        timeout=90
+    )
+    response.raise_for_status()
+    return response.json()["message"]["content"]
+
+
 st.write("Hello! Welcome to Icecream Browser! 🍦")
 st.write("Ask me a question!")
 
@@ -172,18 +220,10 @@ if question:
 
     try:
         with st.spinner("🌈 Icecream AI is thinking..."):
-            response = requests.post(
-                "http://localhost:11434/api/chat",
-                json={
-                    "model": "llama3.2:1b",
-                    "messages": st.session_state.messages,
-                    "stream": False
-                },
-                timeout=90
-            )
-
-            response.raise_for_status()
-            answer = response.json()["message"]["content"]
+            if gemini_key:
+                answer = ask_gemini(st.session_state.messages)
+            else:
+                answer = ask_ollama(st.session_state.messages)
 
         st.session_state.messages.append({
             "role": "assistant",
@@ -191,10 +231,32 @@ if question:
         })
 
     except requests.exceptions.ConnectionError:
-        answer = (
-            "I cannot connect to Ollama. "
-            "Please check that it is running."
-        )
+        if gemini_key:
+            answer = "I cannot connect to the AI right now. Please try again."
+        else:
+            answer = (
+                "I cannot connect to Ollama. "
+                "Please check that it is running."
+            )
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+    except requests.exceptions.HTTPError as error:
+        status = error.response.status_code
+        if status == 429:
+            answer = (
+                "Icecream AI is a bit busy right now. "
+                "Please wait a minute and try again."
+            )
+        elif gemini_key and status in (400, 401, 403):
+            answer = (
+                "The AI key isn't working. "
+                "Please check GEMINI_API_KEY in the app's secrets."
+            )
+        else:
+            answer = "Something went wrong while talking to the AI."
         st.session_state.messages.append({
             "role": "assistant",
             "content": answer
