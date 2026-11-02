@@ -10,9 +10,9 @@ A colourful browser-style website made with Python and Streamlit.
 - Diwali theme
 - Christmas theme
 - Holi theme
-- Google Search
-- AI chat interface
-- Animated ice-cream decoration
+- Search & Ask: Icecream AI answers right on the page, with Google results one tap away
+- Ice cream riddles
+- Animated rainbow ice-cream magic
 
 ## AI Chat Setup
 
