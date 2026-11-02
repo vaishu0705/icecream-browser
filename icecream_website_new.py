@@ -114,8 +114,14 @@ div[data-testid="stChatInput"] textarea {{
     color: {theme['text']};
 }}
 
-div[data-baseweb="select"] > div {{
+div[data-baseweb="select"] > div,
+div[data-testid="stSelectbox"] [role="group"],
+div[data-testid="stExpander"] summary {{
     background-color: {theme['panel']};
+    color: {theme['text']};
+}}
+
+div[data-testid="stSelectbox"] [role="group"] * {{
     color: {theme['text']};
 }}
 
